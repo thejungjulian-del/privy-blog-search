@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privy Blog Search</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: Inter, system-ui, sans-serif; color: #111; background: #fff; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 72px 32px 80px; }
+  h1 { font-size: 34px; font-weight: 400; letter-spacing: -.01em; margin-bottom: 30px; }
+
+  /* top bar: pills + search icon */
+  .bar { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+  .pills { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; flex: 1; }
+  .pill { border: 0; background: none; font: 500 12.5px Inter, sans-serif; color: #111; padding: 9px 13px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+  .pill:hover { background: #f2f2f2; }
+  .pill.on { background: #0a0a0a; color: #fff; }
+  .icon-btn { flex: none; width: 38px; height: 38px; border-radius: 50%; border: 1px solid #e3e3e3; background: #fafafa; display: grid; place-items: center; cursor: pointer; color: #555; }
+  .icon-btn:hover { background: #f0f0f0; color: #111; }
+
+  /* cards */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px 26px; }
+  .card { cursor: pointer; border-radius: 10px; transition: box-shadow .3s; }
+  .card.flash { box-shadow: 0 0 0 4px #fff, 0 0 0 6px #0a0a0a; }
+  .thumb { aspect-ratio: 16/9; background: #ececec; border-radius: 8px; display: grid; place-items: center; color: #c4c4c4; margin-bottom: 22px; }
+  .cat { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: #8a8a8a; margin-bottom: 8px; }
+  .title { font-size: 16px; line-height: 1.45; margin-bottom: 12px; }
+  .line { height: 5px; background: #ececec; border-radius: 3px; margin-bottom: 7px; }
+  .meta { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #777; margin-top: 16px; }
+  .avatar { width: 20px; height: 20px; border-radius: 50%; background: #ececec; }
+
+  /* spotlight */
+  .spot { background: #0a0a0a; color: #fff; border-radius: 10px; padding: 38px 40px 40px; margin: 64px 0; display: grid; grid-template-columns: 1.35fr repeat(3, 1fr); gap: 26px; }
+  .spot .eyebrow { font-size: 10px; letter-spacing: .08em; color: #a3a3a3; margin-bottom: 16px; }
+  .spot h2 { font-size: 26px; font-weight: 400; margin-bottom: 14px; }
+  .spot p { font-size: 13px; line-height: 1.6; color: #9a9a9a; margin-bottom: 16px; }
+  .spot a { color: #fff; font-size: 12px; text-decoration: none; }
+  .spot .item { border-top: 1px solid #333; padding-top: 14px; font-size: 16px; line-height: 1.45; }
+  .spot .item span { display: block; font-size: 10px; color: #8a8a8a; margin-bottom: 14px; }
+
+  /* search overlay */
+  .overlay { position: fixed; inset: 0; background: #fff; z-index: 10; display: flex; flex-direction: column; opacity: 0; visibility: hidden; transform: translateY(-8px); transition: opacity .18s, transform .18s, visibility .18s; }
+  .overlay.open { opacity: 1; visibility: visible; transform: none; }
+  .o-head { border-bottom: 1px solid #ececec; }
+  .o-head .wrap, .o-body .wrap { padding-top: 0; padding-bottom: 0; }
+  .o-row { display: flex; align-items: center; gap: 14px; height: 88px; color: #888; }
+  .o-row input { flex: 1; border: 0; outline: 0; font: 400 26px Inter, sans-serif; color: #111; background: none; min-width: 0; }
+  .o-row input::placeholder { color: #b5b5b5; }
+  .o-body { overflow-y: auto; flex: 1; padding: 28px 0 60px; }
+  .o-label { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #8a8a8a; margin-bottom: 10px; }
+  .result { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 16px 0; border-bottom: 1px solid #f0f0f0; cursor: pointer; font-size: 17px; }
+  .result:hover, .result.sel { color: #000; background: linear-gradient(90deg, #f6f6f6, #fff); }
+  .result small { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: #8a8a8a; white-space: nowrap; }
+  .result mark { background: #f0f0f0; color: inherit; border-radius: 2px; }
+  .empty { color: #999; font-size: 15px; padding: 16px 0; }
+  kbd { font: 11px Inter, sans-serif; border: 1px solid #e3e3e3; border-radius: 4px; padding: 2px 6px; color: #888; }
+
+  @media (max-width: 760px) {
+    .wrap { padding: 40px 16px 60px; }
+    .grid { grid-template-columns: 1fr; }
+    .spot { grid-template-columns: 1fr; padding: 28px 24px; }
+    .o-row input { font-size: 20px; }
+    .o-row kbd { display: none; }
+  }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <h1>Gallery</h1>
+  <div class="bar">
+    <nav class="pills" id="pills"></nav>
+    <button class="icon-btn" id="openSearch" aria-label="Search posts" title="Search (/)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    </button>
+  </div>
+
+  <section class="grid" id="row1"></section>
+
+  <section class="spot">
+    <div>
+      <div class="eyebrow">SPOTLIGHT &nbsp;·&nbsp; MONTHLY RECAP</div>
+      <h2>October at Privy</h2>
+      <p>Rotates between a monthly recap, a partner callout, or an action item.</p>
+      <a href="#">Read the recap →</a>
+    </div>
+    <div class="item"><span>01</span>Wallets for agents</div>
+    <div class="item"><span>02</span>Stablecoin payouts in 40 countries</div>
+    <div class="item"><span>03</span>New SOC 2 Type II report</div>
+  </section>
+
+  <section class="grid" id="row2"></section>
+</main>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-label="Search posts">
+  <div class="o-head"><div class="wrap"><div class="o-row">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input id="q" type="text" placeholder="Search posts" autocomplete="off">
+    <kbd>esc</kbd>
+    <button class="icon-btn" id="closeSearch" aria-label="Close search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+  </div></div></div>
+  <div class="o-body"><div class="wrap">
+    <div class="o-label" id="oLabel">All posts</div>
+    <div id="results"></div>
+  </div></div>
+</div>
+
+<script>
+const CATS = ['All', 'Product & Engineering', 'Case Studies', 'Market', 'Announcements', 'Inside the Stack'];
+const POSTS = [
+  { tag: 'Product update', cat: 'Product & Engineering', title: 'Introducing universal deposit addresses' },
+  { tag: 'Customer story', cat: 'Case Studies',          title: 'Robinhood brings global markets onchain' },
+  { tag: 'Engineering',    cat: 'Product & Engineering', title: 'High-performance Solana transaction landing' },
+  { tag: 'Market',         cat: 'Market',                title: 'The state of stablecoin payments, Q3' },
+  { tag: 'Announcement',   cat: 'Announcements',         title: 'Privy is now SOC 2 Type II certified' },
+  { tag: 'Inside the stack', cat: 'Inside the Stack',    title: 'How we shard key material across enclaves' },
+];
+const img = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="m21 16-5-5-9 9"/></svg>';
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const $ = id => document.getElementById(id);
+
+// cards
+const card = (p, i) => `<article class="card" id="post-${i}" data-cat="${p.cat}">
+  <div class="thumb">${img}</div>
+  <div class="cat">${p.tag}</div>
+  <div class="title">${p.title}</div>
+  <div class="line" style="width:90%"></div><div class="line" style="width:55%"></div>
+  <div class="meta"><span class="avatar"></span>Name, Role &nbsp;·&nbsp; Sep 2026</div>
+</article>`;
+$('row1').innerHTML = POSTS.slice(0, 3).map(card).join('');
+$('row2').innerHTML = POSTS.slice(3).map((p, i) => card(p, i + 3)).join('');
+
+// category pills
+$('pills').innerHTML = CATS.map((c, i) => `<button class="pill${i ? '' : ' on'}">${esc(c)}</button>`).join('');
+$('pills').onclick = e => {
+  const b = e.target.closest('.pill'); if (!b) return;
+  document.querySelectorAll('.pill').forEach(x => x.classList.toggle('on', x === b));
+  const c = b.textContent;
+  document.querySelectorAll('.card').forEach(el => el.style.display = c === 'All' || el.dataset.cat === c ? '' : 'none');
+};
+
+// search overlay
+let sel = 0, hits = [];
+function render() {
+  const q = $('q').value.trim().toLowerCase();
+  hits = POSTS.map((p, i) => ({ ...p, i })).filter(p => !q || (p.title + ' ' + p.tag + ' ' + p.cat).toLowerCase().includes(q));
+  sel = Math.min(sel, Math.max(hits.length - 1, 0));
+  $('oLabel').textContent = q ? `${hits.length} result${hits.length === 1 ? '' : 's'}` : 'All posts';
+  const hl = t => q ? esc(t).replace(new RegExp(esc(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), m => `<mark>${m}</mark>`) : esc(t);
+  $('results').innerHTML = hits.length
+    ? hits.map((p, k) => `<div class="result${k === sel ? ' sel' : ''}" data-i="${p.i}"><span>${hl(p.title)}</span><small>${esc(p.tag)}</small></div>`).join('')
+    : `<div class="empty">No posts match “${esc(q)}”.</div>`;
+}
+function openSearch() { $('overlay').classList.add('open'); $('q').value = ''; sel = 0; render(); setTimeout(() => $('q').focus(), 30); }
+function closeSearch() { $('overlay').classList.remove('open'); $('openSearch').focus(); }
+function go(i) {
+  closeSearch();
+  document.querySelector('.pill').click(); // reset filter so the card is visible
+  const el = $('post-' + i);
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1400);
+}
+$('openSearch').onclick = openSearch;
+$('closeSearch').onclick = closeSearch;
+$('q').oninput = () => { sel = 0; render(); };
+$('results').onclick = e => { const r = e.target.closest('.result'); if (r) go(+r.dataset.i); };
+document.addEventListener('keydown', e => {
+  const open = $('overlay').classList.contains('open');
+  if (!open && (e.key === '/' || (e.key === 'k' && (e.metaKey || e.ctrlKey)))) { e.preventDefault(); openSearch(); }
+  if (!open) return;
+  if (e.key === 'Escape') closeSearch();
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); sel = (sel + (e.key === 'ArrowDown' ? 1 : -1) + hits.length) % (hits.length || 1); render(); }
+  if (e.key === 'Enter' && hits[sel]) { e.preventDefault(); go(hits[sel].i); }
+});
+</script>
+</body>
+</html>
