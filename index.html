@@ -13,7 +13,7 @@
   h1 { font-size: 34px; font-weight: 400; letter-spacing: -.01em; margin-bottom: 30px; }
 
   /* top bar: pills + search icon */
-  .bar { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+  .bar { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; position: relative; }
   .pills { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; flex: 1; }
   .pill { border: 0; background: none; font: 500 12.5px Inter, sans-serif; color: #111; padding: 9px 13px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
   .pill:hover { background: #f2f2f2; }
@@ -41,17 +41,19 @@
   .spot .item { border-top: 1px solid #333; padding-top: 14px; font-size: 16px; line-height: 1.45; }
   .spot .item span { display: block; font-size: 10px; color: #8a8a8a; margin-bottom: 14px; }
 
-  /* search overlay: covers everything under the title (top set in JS) */
-  .overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #fff; z-index: 10; display: flex; flex-direction: column; opacity: 0; visibility: hidden; transform: translateY(-8px); transition: opacity .18s, transform .18s, visibility .18s; }
+  /* search panel: sits over the gallery inside the page margins, rest of the page dimmed */
+  .overlay { position: absolute; top: 0; left: 0; right: 0; max-height: min(560px, calc(100vh - 160px)); background: #fff; border: 1px solid #e3e3e3; border-radius: 12px; box-shadow: 0 16px 40px rgba(0,0,0,.12); overflow: hidden; z-index: 10; display: flex; flex-direction: column; opacity: 0; visibility: hidden; transform: translateY(-8px); transition: opacity .18s, transform .18s, visibility .18s; }
   .overlay.open { opacity: 1; visibility: visible; transform: none; }
   html { scrollbar-gutter: stable; }
+  .dim { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 9; opacity: 0; visibility: hidden; transition: opacity .18s, visibility .18s; }
   body.searching { overflow: hidden; }
+  body.searching .dim { opacity: 1; visibility: visible; }
   .o-head { border-bottom: 1px solid #ececec; }
-  .o-head .wrap, .o-body .wrap { padding-top: 0; padding-bottom: 0; }
-  .o-row { display: flex; align-items: center; gap: 14px; height: 88px; color: #888; }
+  .o-row { display: flex; align-items: center; gap: 14px; height: 88px; padding: 0 24px; color: #888; }
   .o-row input { flex: 1; border: 0; outline: 0; font: 400 26px Inter, sans-serif; color: #111; background: none; min-width: 0; }
   .o-row input::placeholder { color: #b5b5b5; }
-  .o-body { overflow-y: auto; flex: 1; padding: 28px 0 60px; }
+  .o-body { overflow-y: auto; min-height: 0; padding: 24px 24px 8px; }
+  .result:last-child { border-bottom: 0; }
   .o-label { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #8a8a8a; margin-bottom: 10px; }
   .result { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 16px 0; border-bottom: 1px solid #f0f0f0; cursor: pointer; font-size: 17px; }
   .result:hover, .result.sel { color: #000; background: linear-gradient(90deg, #f6f6f6, #fff); }
@@ -65,6 +67,7 @@
     .grid { grid-template-columns: 1fr; }
     .spot { grid-template-columns: 1fr; padding: 28px 24px; }
     .o-row input { font-size: 20px; }
+    .o-row, .o-body { padding-left: 16px; padding-right: 16px; }
     .o-row kbd { display: none; }
   }
 </style>
@@ -77,6 +80,20 @@
     <button class="icon-btn" id="openSearch" aria-label="Search posts" aria-expanded="false" title="Search (/)">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
     </button>
+    <div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-label="Search posts">
+      <div class="o-head"><div class="o-row">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="text" placeholder="Search posts" autocomplete="off">
+        <kbd>esc</kbd>
+        <button class="icon-btn" id="closeSearch" aria-label="Close search">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </div></div>
+      <div class="o-body">
+        <div class="o-label" id="oLabel">All posts</div>
+        <div id="results"></div>
+      </div>
+    </div>
   </div>
 
   <section class="grid" id="row1"></section>
@@ -95,21 +112,7 @@
 
   <section class="grid" id="row2"></section>
 </main>
-
-<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-label="Search posts">
-  <div class="o-head"><div class="wrap"><div class="o-row">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-    <input id="q" type="text" placeholder="Search posts" autocomplete="off">
-    <kbd>esc</kbd>
-    <button class="icon-btn" id="closeSearch" aria-label="Close search">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
-    </button>
-  </div></div></div>
-  <div class="o-body"><div class="wrap">
-    <div class="o-label" id="oLabel">All posts</div>
-    <div id="results"></div>
-  </div></div>
-</div>
+<div class="dim"></div>
 
 <script>
 const CATS = ['All', 'Product & Engineering', 'Case Studies', 'Market', 'Announcements', 'Inside the Stack'];
@@ -159,8 +162,7 @@ function render() {
     : `<div class="empty">No posts match “${esc(q)}”.</div>`;
 }
 function openSearch() {
-  scrollTo(0, 0); // keep the title in view, overlay starts right under it
-  $('overlay').style.top = document.querySelector('h1').getBoundingClientRect().bottom + 'px';
+  scrollTo(0, 0); // panel sits over the top of the gallery, so bring it into view
   $('overlay').classList.add('open'); document.body.classList.add('searching'); $('openSearch').setAttribute('aria-expanded', 'true'); $('q').value = ''; sel = 0; render(); setTimeout(() => $('q').focus(), 30); }
 function closeSearch() { $('overlay').classList.remove('open'); document.body.classList.remove('searching'); $('openSearch').setAttribute('aria-expanded', 'false'); }
 function go(i) {
