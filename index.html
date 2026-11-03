@@ -13,7 +13,7 @@
   h1 { font-size: 34px; font-weight: 400; letter-spacing: -.01em; margin-bottom: 30px; }
 
   /* top bar: pills + search icon */
-  .bar { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; position: relative; }
+  .bar { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
   .pills { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; flex: 1; }
   .pill { border: 0; background: none; font: 500 12.5px Inter, sans-serif; color: #111; padding: 9px 13px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
   .pill:hover { background: #f2f2f2; }
@@ -41,30 +41,30 @@
   .spot .item { border-top: 1px solid #333; padding-top: 14px; font-size: 16px; line-height: 1.45; }
   .spot .item span { display: block; font-size: 10px; color: #8a8a8a; margin-bottom: 14px; }
 
-  /* search dropdown */
-  .drop { position: absolute; top: calc(100% + 8px); left: 0; right: 0; background: #fff; border: 1px solid #e3e3e3; border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,.08); z-index: 10; opacity: 0; visibility: hidden; transform: translateY(-4px); transition: opacity .15s, transform .15s, visibility .15s; }
-  .drop.open { opacity: 1; visibility: visible; transform: none; }
+  /* search overlay: covers everything under the title (top set in JS) */
+  .overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #fff; z-index: 10; display: flex; flex-direction: column; opacity: 0; visibility: hidden; transform: translateY(-8px); transition: opacity .18s, transform .18s, visibility .18s; }
+  .overlay.open { opacity: 1; visibility: visible; transform: none; }
   html { scrollbar-gutter: stable; }
-  .dim { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 9; opacity: 0; visibility: hidden; transition: opacity .15s, visibility .15s; }
   body.searching { overflow: hidden; }
-  body.searching .dim { opacity: 1; visibility: visible; }
-  body.searching #openSearch { position: relative; z-index: 10; }
-  .o-row { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid #ececec; color: #888; }
-  .o-row input { flex: 1; border: 0; outline: 0; font: 400 16px Inter, sans-serif; color: #111; background: none; min-width: 0; }
+  .o-head { border-bottom: 1px solid #ececec; }
+  .o-head .wrap, .o-body .wrap { padding-top: 0; padding-bottom: 0; }
+  .o-row { display: flex; align-items: center; gap: 14px; height: 88px; color: #888; }
+  .o-row input { flex: 1; border: 0; outline: 0; font: 400 26px Inter, sans-serif; color: #111; background: none; min-width: 0; }
   .o-row input::placeholder { color: #b5b5b5; }
-  .o-body { max-height: 340px; overflow-y: auto; padding: 6px; }
-  .o-label { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #8a8a8a; padding: 8px 10px 6px; }
-  .result { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 10px; border-radius: 8px; cursor: pointer; font-size: 14px; }
-  .result:hover, .result.sel { background: #f4f4f4; }
-  .result small { font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; color: #8a8a8a; white-space: nowrap; }
-  .result mark { background: #e6e6e6; color: inherit; border-radius: 2px; }
-  .empty { color: #999; font-size: 14px; padding: 10px; }
+  .o-body { overflow-y: auto; flex: 1; padding: 28px 0 60px; }
+  .o-label { font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #8a8a8a; margin-bottom: 10px; }
+  .result { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 16px 0; border-bottom: 1px solid #f0f0f0; cursor: pointer; font-size: 17px; }
+  .result:hover, .result.sel { color: #000; background: linear-gradient(90deg, #f6f6f6, #fff); }
+  .result small { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: #8a8a8a; white-space: nowrap; }
+  .result mark { background: #f0f0f0; color: inherit; border-radius: 2px; }
+  .empty { color: #999; font-size: 15px; padding: 16px 0; }
   kbd { font: 11px Inter, sans-serif; border: 1px solid #e3e3e3; border-radius: 4px; padding: 2px 6px; color: #888; }
 
   @media (max-width: 760px) {
     .wrap { padding: 40px 16px 60px; }
     .grid { grid-template-columns: 1fr; }
     .spot { grid-template-columns: 1fr; padding: 28px 24px; }
+    .o-row input { font-size: 20px; }
     .o-row kbd { display: none; }
   }
 </style>
@@ -77,17 +77,6 @@
     <button class="icon-btn" id="openSearch" aria-label="Search posts" aria-expanded="false" title="Search (/)">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
     </button>
-    <div class="drop" id="drop" role="dialog" aria-label="Search posts">
-      <div class="o-row">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-        <input id="q" type="text" placeholder="Search posts" autocomplete="off">
-        <kbd>esc</kbd>
-      </div>
-      <div class="o-body">
-        <div class="o-label" id="oLabel">All posts</div>
-        <div id="results"></div>
-      </div>
-    </div>
   </div>
 
   <section class="grid" id="row1"></section>
@@ -106,7 +95,21 @@
 
   <section class="grid" id="row2"></section>
 </main>
-<div class="dim"></div>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-label="Search posts">
+  <div class="o-head"><div class="wrap"><div class="o-row">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input id="q" type="text" placeholder="Search posts" autocomplete="off">
+    <kbd>esc</kbd>
+    <button class="icon-btn" id="closeSearch" aria-label="Close search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+  </div></div></div>
+  <div class="o-body"><div class="wrap">
+    <div class="o-label" id="oLabel">All posts</div>
+    <div id="results"></div>
+  </div></div>
+</div>
 
 <script>
 const CATS = ['All', 'Product & Engineering', 'Case Studies', 'Market', 'Announcements', 'Inside the Stack'];
@@ -142,9 +145,9 @@ $('pills').onclick = e => {
   document.querySelectorAll('.card').forEach(el => el.style.display = c === 'All' || el.dataset.cat === c ? '' : 'none');
 };
 
-// search dropdown
+// search overlay
 let sel = 0, hits = [];
-const isOpen = () => $('drop').classList.contains('open');
+const isOpen = () => $('overlay').classList.contains('open');
 function render() {
   const q = $('q').value.trim().toLowerCase();
   hits = POSTS.map((p, i) => ({ ...p, i })).filter(p => !q || (p.title + ' ' + p.tag + ' ' + p.cat).toLowerCase().includes(q));
@@ -155,8 +158,11 @@ function render() {
     ? hits.map((p, k) => `<div class="result${k === sel ? ' sel' : ''}" data-i="${p.i}"><span>${hl(p.title)}</span><small>${esc(p.tag)}</small></div>`).join('')
     : `<div class="empty">No posts match “${esc(q)}”.</div>`;
 }
-function openSearch() { $('drop').classList.add('open'); document.body.classList.add('searching'); $('openSearch').setAttribute('aria-expanded', 'true'); $('q').value = ''; sel = 0; render(); setTimeout(() => $('q').focus(), 30); }
-function closeSearch() { $('drop').classList.remove('open'); document.body.classList.remove('searching'); $('openSearch').setAttribute('aria-expanded', 'false'); }
+function openSearch() {
+  scrollTo(0, 0); // keep the title in view, overlay starts right under it
+  $('overlay').style.top = document.querySelector('h1').getBoundingClientRect().bottom + 'px';
+  $('overlay').classList.add('open'); document.body.classList.add('searching'); $('openSearch').setAttribute('aria-expanded', 'true'); $('q').value = ''; sel = 0; render(); setTimeout(() => $('q').focus(), 30); }
+function closeSearch() { $('overlay').classList.remove('open'); document.body.classList.remove('searching'); $('openSearch').setAttribute('aria-expanded', 'false'); }
 function go(i) {
   closeSearch();
   document.querySelector('.pill').click(); // reset filter so the card is visible
@@ -164,10 +170,11 @@ function go(i) {
   el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1400);
 }
-$('openSearch').onclick = () => isOpen() ? closeSearch() : openSearch();
+$('openSearch').onclick = openSearch;
+$('closeSearch').onclick = closeSearch;
 $('q').oninput = () => { sel = 0; render(); };
 $('results').onclick = e => { const r = e.target.closest('.result'); if (r) go(+r.dataset.i); };
-document.addEventListener('click', e => { if (isOpen() && !$('drop').contains(e.target) && !$('openSearch').contains(e.target)) closeSearch(); });
+document.addEventListener('click', e => { if (isOpen() && !$('overlay').contains(e.target) && !$('openSearch').contains(e.target)) closeSearch(); });
 document.addEventListener('keydown', e => {
   const open = isOpen();
   if (!open && (e.key === '/' || (e.key === 'k' && (e.metaKey || e.ctrlKey)))) { e.preventDefault(); openSearch(); }
